@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>실시간 채팅</title>
+    <style>
+        ul li{
+            list-style:none;
+        }
+        #chat_container {
+            display: none;
+            width: 500px;
+        }
+        #user-list {
+            border: 1px solid #ccc;
+            padding: 10px;
+        }
+
+        #message_box {
+            border: 1px solid #ccc;
+            height: 300px;
+            overflow-y: scroll;
+        }
+        #message_input {
+            width: 80%;
+            padding: 5px;
+        }
+        #send {
+            padding: 5px;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="nick_container">
+        <input id="nickname" placeholder="닉네임을 입력하세요" />
+        <button id="join">참가</button>
+    </div>
+    <div id="chat_container">
+        <div id="user-list">
+            <p>Online</p>
+            <ul id="users"></ul>
+        </div>
+        <div id="message_box"></div>
+        <form id="message_form">
+            <input id="message_input" autocomplete="off" placeholder="메시지 입력" />
+            <button id="send">보내기</button>
+        </form>
+    </div>
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const socket = io();
+        const nickContainer = document.getElementById('nick_container');
+        const chatContainer = document.getElementById('chat_container');
+        const nicknameInput = document.getElementById('nickname');
+        const joinButton = document.getElementById('join');
+        const userList = document.getElementById('users');
+        const messageBox = document.getElementById('message_box');
+        const messageForm = document.getElementById('message_form');
+        const messageInput = document.getElementById('message_input');
+        let nickname = '';
+
+        function updateUserList(users) {
+            userList.innerHTML = '';
+            for (const socketId in users) {
+                const userItem = document.createElement('li');
+                userItem.textContent = users[socketId];
+                userList.appendChild(userItem);
+            }
+        }
+
+        joinButton.addEventListener('click', () => {
+            nickname = nicknameInput.value;
+            if (nickname.trim() !== '') {
+                socket.emit('join', nickname);
+                nickContainer.style.display = 'none';
+                chatContainer.style.display = 'block';
+            }
+        });
+
+        messageForm.addEventListener('submit', (event) => {
+            event.preventDefault();
+            const message = messageInput.value;
+            socket.emit('chat message', message);
+            messageInput.value = '';
+        });
+
+        socket.on('chat message', (data) => {
+            const messageDiv = document.createElement('div');
+            if (data.nick === nickname) {
+                messageDiv.textContent = `나: ${data.message}`;
+            } else {
+                messageDiv.textContent = `${data.nick}: ${data.message}`;
+            }
+            messageBox.appendChild(messageDiv);
+        });
+
+        socket.on('user joined', (nick) => {
+            const messageDiv = document.createElement('div');
+            messageDiv.textContent = `${nick} 님이 입장하셨습니다.`;
+            messageBox.appendChild(messageDiv);
+        });
+
+        socket.on('user left', (nick) => {
+            const messageDiv = document.createElement('div');
+            messageDiv.textContent = `${nick} 님이 퇴장하셨습니다.`;
+            messageBox.appendChild(messageDiv);
+        });
+
+        socket.on('updateUserList', (users) => {
+            updateUserList(users);
+        });
+
+        socket.on('server message', (message) => {
+            console.log(message);
+        });
+    </script>
+</body>
+
+</html>
